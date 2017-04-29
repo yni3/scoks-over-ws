@@ -1,0 +1,47 @@
+{
+    "AUTH_USER": "",
+    "AUTH_PASS": "",
+    "CLIENT_USER_AGENT":"WinHttpRequest",
+    "CLIENT_HOST_NAME": "localhost",
+    "CLIENT_OUTGOING_SOCKS": "",
+    "CLIENT_SOCKS5_PORT": 1080,
+    "CLIENT_SOCKS4_PORT": 1081,
+    "CLIENT_HTTP_PROXY_PORT": 8000,
+    "CLIENT_DNS_PORT": 53,
+    "CLIENT_BRIDGE_PORT": 1800,
+    "CLIENT_SERVER_ADDRESS": "https://exsample.com",
+    "CLIENT_SERVER_PATH": "/",
+    "CLIENT_WEBSOCKET_ONLY" : false,
+    "CLIENT_RECONNECTION_DELAY" : 10000,
+    "CLIENT_PORT_FORWARDS" : [
+        {
+            "to" : "foo.com",
+            "port" : 80,
+            "bind" : 18080
+        },
+        {
+            "to" : "127.0.0.1",
+            "port" : 443,
+            "bind" : 18081
+        }
+    ],
+    "DATA_FLUSH_INTERVAL": 66,
+    "SERVER_PATH": "/",
+    "SERVER_PORT": 443,
+    "log4js": {
+        "level": "INFO",
+        "configure": {
+            "appenders": [
+                {
+                    "category": "system",
+                    "type": "console"
+                },
+                {
+                    "category": "access",
+                    "type": "console"
+                }
+            ],
+            "replaceConsole": true
+        }
+    }
+}

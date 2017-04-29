@@ -1,0 +1,23 @@
+{
+  "name": "sockes-over-ws",
+  "version": "0.5",
+  "description": "Bypass your TCP connection client to server over HTTP.",
+  "author": "yni3",
+  "license": "BSD3",
+  "dependencies": {
+    "auto-loader": "^0.2.0",
+    "buffer-serializer": "^1.1.0",
+    "config": "^1.25.1",
+    "crypto": "0.0.3",
+    "dnsd": "^0.9.6",
+    "http-proxy-agent": "^1.0.0",
+    "https-proxy-agent": "^1.0.0",
+    "log4js": "^1.1.1",
+    "net": "^1.0.2",
+    "pson": "^2.0.0",
+    "socket.io": "^1.7.3",
+    "socket.io-client": "^1.7.3",
+    "socks4": "^0.1.1",
+    "socksv5": "0.0.6"
+  }
+}

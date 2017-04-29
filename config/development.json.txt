@@ -1,0 +1,20 @@
+{
+    "CLIENT_SERVER_ADDRESS": "",
+    "CLIENT_PORT_FORWARDS" : [],
+    "log4js": {
+        "level": "ALL",
+        "configure": {
+            "appenders": [
+                {
+                    "category": "system",
+                    "type": "console"
+                },
+                {
+                    "category": "access",
+                    "type": "console"
+                }
+            ],
+            "replaceConsole": true
+        }
+    }
+}

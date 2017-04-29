@@ -1,0 +1,31 @@
+{
+    "CLIENT_SERVER_ADDRESS": "",
+    "CLIENT_PORT_FORWARDS" : [],
+    "CLIENT_SOCKS5_PORT": 1082,
+    "CLIENT_SOCKS4_PORT": 1083,
+    "log4js": {
+        "configure": {
+            "appenders": [
+                {
+                    "category": "system",
+                    "type": "file",
+                    "filename": "logs/system.log",
+                    "maxLogSize": 1048576,
+                    "backups": 1000
+                },
+                {
+                    "category": "access",
+                    "type": "file",
+                    "filename": "logs/access.log",
+                    "maxLogSize": 1048576,
+                    "backups": 1000
+                }
+            ],
+            "levels": {
+                "system": "ERROR",
+                "access": "INFO"
+            },
+            "replaceConsole": true
+        }
+    }
+}

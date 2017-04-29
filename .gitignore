@@ -1,0 +1,5 @@
+/nbproject
+/logs
+/node_modules
+/npm-debug*
+*.bak

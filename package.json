@@ -1,9 +1,9 @@
 {
   "name": "sockes-over-ws",
-  "version": "0.5",
+  "version": "0.5.0",
   "description": "Bypass your TCP connection client to server over HTTP.",
   "author": "yni3",
-  "license": "BSD3",
+  "license": "BSD-3-Clause",
   "dependencies": {
     "auto-loader": "^0.2.0",
     "buffer-serializer": "^1.1.0",

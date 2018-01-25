@@ -63,7 +63,7 @@ var io = socketio.listen(server, {
     path: config.get("SERVER_PATH")
 });
 
-Logger.system.info("server started");
+Logger.system.info("server started ",config.get("SERVER_PORT"));
 
 io.sockets.on("connection", function (socket) {
     var id = Object.id(socket);

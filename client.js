@@ -28,17 +28,48 @@ var ClientSocket = function () {
     if (!(this instanceof ClientSocket)) {
         return new ClientSocket();
     }
-    this.scoket = null;     //書き込みソケット
+    this.socket = null;     //書き込みソケット
     this.is_self = true;    //自分のソケットかピアのものか
     this.peer = -1; //ピアID
     this.p_id = -1; //ピアの接続ID
     //upとdownに分かれているとき、キューを閉じる判定に使う(HTTP)
     this.is_up_close = true;
     this.is_down_close = true;
-}
+    //通信速度制限
+    this.emit_data_size = 0;
+    this.last_mesured_time = 0;
+    this.pause_locker = false;
+};
+ClientSocket.prototype.checkSpeed = function (data_size)
+{
+    var timePassed = Date.now() - this.last_mesured_time;
+    if (timePassed > 1000) {
+        //前回計測から1秒以上経過しているなら計測時刻を更新して終了
+        this.last_mesured_time = Date.now();
+        this.emit_data_size = data_size;
+        return;
+    } else {
+        this.emit_data_size += data_size;
+        //通信レート上限を超えると一時停止
+        if (this.emit_data_size > config.CLIENT_OUTGOING_LIMIT) {
+            var that = this;
+            if (!this.pause_locker) {
+                this.pause_locker = true;
+                this.socket.pause();
+                Logger.system.debug("Limit Rate %dms", 1000 - timePassed);
+                setTimeout(function () {
+                    Logger.system.debug("Wakeup Rate");
+                    that.socket.resume();
+                    that.pause_locker = false;
+                }, 1000 - timePassed);
+            }
+        }
+    }
+};
+    
 var client_sockets = {};
 
-//webscoket接続時に、SSLモードだとエラーになる
+//websocket接続時に、SSLモードだとエラーになる
 //nodeとブラウザと証明書リストが異なる？
 //内部認証があるので、とりあず無効
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
@@ -74,7 +105,7 @@ if (config.get("CLIENT_DNS_PORT") !== 0) {
 function handler(req, res) {
     Object.id(req);
     client_sockets[Object.id(res)] = new ClientSocket();
-    client_sockets[Object.id(res)].scoket = res;
+    client_sockets[Object.id(res)].socket = res;
 
     var question = {};
     question.name = res.question[0].name;
@@ -243,7 +274,7 @@ function startBeidgeServer() {
                 if (sio_acceptable) {
                     var csid = id + "_" + recived.c_id;
                     client_sockets[csid] = new ClientSocket();
-                    client_sockets[csid].scoket = socket;
+                    client_sockets[csid].socket = socket;
                     client_sockets[csid].is_self = false;
                     client_sockets[csid].peer = id;
                     client_sockets[csid].p_id = recived.c_id;
@@ -335,7 +366,7 @@ function startBeidgeServer() {
                 if (sio_acceptable) {
                     var csid = id + "_" + recived.c_id;
                     client_sockets[csid] = new ClientSocket();
-                    client_sockets[csid].scoket = socket;
+                    client_sockets[csid].socket = socket;
                     client_sockets[csid].is_self = false;
                     client_sockets[csid].peer = id;
                     client_sockets[csid].p_id = recived.c_id;
@@ -359,7 +390,7 @@ function startBeidgeServer() {
                 if (sio_acceptable) {
                     var csid = id + "_" + recived.c_id;
                     client_sockets[csid] = new ClientSocket();
-                    client_sockets[csid].scoket = socket;
+                    client_sockets[csid].socket = socket;
                     client_sockets[csid].is_self = false;
                     client_sockets[csid].peer = id;
                     client_sockets[csid].p_id = recived.c_id;
@@ -397,7 +428,7 @@ var start_forward_server = function (index) {
     var bind = config.CLIENT_PORT_FORWARDS[index].bind;
     net.createServer(function (socket) {
         client_sockets[Object.id(socket)] = new ClientSocket();
-        client_sockets[Object.id(socket)].scoket = socket;
+        client_sockets[Object.id(socket)].socket = socket;
         if (sio_acceptable) {
             transmitter.emit(def.SIO_CMD_CONNECT,
                     {
@@ -471,7 +502,7 @@ function startHttpServer() {
         if (sio_acceptable) {
             //受信用ソケット
             client_sockets[Object.id(response)] = new ClientSocket();
-            client_sockets[Object.id(response)].scoket = response;
+            client_sockets[Object.id(response)].socket = response;
 
             Logger.access.info("[HTTP][request] %s:%d", acess_info.hostname, (acess_info.port || 80));
             transmitter.emit(def.SIO_CMD_HTTP_REQ,
@@ -545,7 +576,7 @@ function startHttpServer() {
         if (sio_acceptable) {
             //受信用ソケット
             client_sockets[Object.id(socket)] = new ClientSocket();
-            client_sockets[Object.id(socket)].scoket = socket;
+            client_sockets[Object.id(socket)].socket = socket;
 
             socket.write('HTTP/1.0 200 Connection established\r\n\r\n');
             Logger.access.info("[HTTP][connect] %s:%d", acess_info.hostname, acess_info.port);
@@ -565,6 +596,7 @@ function startHttpServer() {
         socket.on('data', function (data) {
             Logger.system.debug('[HTTP][connect] data %d kb', data.toString().length);
             if (sio_acceptable) {
+                client_sockets[Object.id(socket)].checkSpeed(data.length);
                 transmitter.emit(def.SIO_CMD_DATA,
                         {
                             c_id: Object.id(socket),
@@ -645,8 +677,8 @@ var start_scokserver = function () {
                 }
                 Logger.access.info('[SOCK5] to : ', info.dstAddr, ":", info.dstPort, " id:", Object.id(socket));
                 client_sockets[Object.id(socket)] = new ClientSocket();
-                client_sockets[Object.id(socket)].scoket = socket;
-
+                client_sockets[Object.id(socket)].socket = socket;
+                
                 if (sio_acceptable) {
                     transmitter.emit(def.SIO_CMD_CONNECT,
                             {
@@ -658,8 +690,9 @@ var start_scokserver = function () {
                 }
                 //アプリケーションイベント
                 socket.on('data', function (data) {
-                    Logger.system.debug('[SCOK5] data %d kb', data.toString().length);
+                    Logger.system.debug('[SCOK5] data %d byte', data.toString().length);
                     if (sio_acceptable) {
+                        client_sockets[Object.id(socket)].checkSpeed(data.length);
                         transmitter.emit(def.SIO_CMD_DATA,
                                 {
                                     c_id: Object.id(socket),
@@ -726,7 +759,7 @@ var start_scokserver = function () {
                     return;
                 }
                 client_sockets[Object.id(socket)] = new ClientSocket();
-                client_sockets[Object.id(socket)].scoket = socket;
+                client_sockets[Object.id(socket)].socket = socket;
 
                 Logger.access.info('[SOCK4] to :', req.host, ":", req.port, ' id:', Object.id(socket));
                 transmitter.emit(def.SIO_CMD_CONNECT,
@@ -738,9 +771,8 @@ var start_scokserver = function () {
                 );
                 socket.on('data', function (data) {
                     Logger.system.debug('[SCOK4] data %d bytes', data.toString().length);
-                    // ソケットに応答を書き込みます。クライアントはその書き込みを受信します。
-                    //socket.write('RECIEVED');
                     if (sio_socket) {
+                        client_sockets[Object.id(socket)].checkSpeed(data.length);
                         transmitter.emit(def.SIO_CMD_DATA,
                                 {
                                     c_id: Object.id(socket),
@@ -885,8 +917,8 @@ sio_socket.on(def.SIO_CMD_AUTH_ACK, function (data) {
 sio_socket.on(def.SIO_CMD_SHUTDOWN, function (data) {
     Logger.system.error('[SIO]shutdown : ', data);
     for (var index in bridge_sockets) {
-        bridge_sockets[index].scoket.emit(def.SIO_CMD_SHUTDOWN, data);
-        bridge_sockets[index].scoket.disconnect();
+        bridge_sockets[index].socket.emit(def.SIO_CMD_SHUTDOWN, data);
+        bridge_sockets[index].socket.disconnect();
     }
     process.exit(1);
 });
@@ -911,7 +943,7 @@ sio_socket.on('disconnect', function (had_error) {
     //既存の接続を切る
     for (var index in client_sockets) {
         if (client_sockets[index].is_self) {
-            client_sockets[index].scoket.destroy();
+            client_sockets[index].socket.destroy();
         } else {
             bridge_sockets[client_sockets[index].peer].bypass_close(client_sockets[index].p_id);
         }
@@ -940,7 +972,7 @@ reciver.cb_data = function (recived) {
     if (recived.c_id && client_sockets[recived.c_id]) {
         if (client_sockets[recived.c_id].is_self) {
             Logger.system.debug('[SOCK] write');
-            client_sockets[recived.c_id].scoket.write(recived.c_data);
+            client_sockets[recived.c_id].socket.write(recived.c_data);
         } else {
             bridge_sockets[client_sockets[recived.c_id].peer].emit(def.SIO_CMD_DATA,
                     {
@@ -957,7 +989,7 @@ reciver.cb_error = function (recived) {
     Logger.system.debug('[TRANS] err ' + recived.c_id);
     if (recived.c_id && client_sockets[recived.c_id]) {
         if (client_sockets[recived.c_id].is_self) {
-            client_sockets[recived.c_id].scoket.end();
+            client_sockets[recived.c_id].socket.end();
         } else {
             bridge_sockets[client_sockets[recived.c_id].peer].emit(def.SIO_CMD_ERROR,
                     {
@@ -979,7 +1011,7 @@ reciver.cb_close = function (recived) {
     Logger.system.debug('[TRANS] Close %s', recived.c_id);
     if (recived.c_id && client_sockets[recived.c_id]) {
         if (client_sockets[recived.c_id].is_self) {
-            client_sockets[recived.c_id].scoket.end();
+            client_sockets[recived.c_id].socket.end();
         } else {
             bridge_sockets[client_sockets[recived.c_id].peer].emit(def.SIO_CMD_CLOSE,
                     {
@@ -1001,7 +1033,7 @@ reciver.cb_http_res = function (recived) {
     Logger.system.debug('[TRANS][HTTP RESPONSE] request_id:%s', recived.c_id);
     if (recived.c_id && client_sockets[recived.c_id]) {
         if (client_sockets[recived.c_id].is_self) {
-            client_sockets[recived.c_id].scoket.writeHead(recived.status, recived.headers);
+            client_sockets[recived.c_id].socket.writeHead(recived.status, recived.headers);
         } else {
             bridge_sockets[client_sockets[recived.c_id].peer].emit(def.SIO_CMD_HTTP_RES,
                     {
@@ -1018,7 +1050,7 @@ reciver.cb_dns = function (recived) {
     Logger.system.debug('[TRANS] DNS returned', recived);
     if (recived.c_id && client_sockets[recived.c_id]) {
         if (client_sockets[recived.c_id].is_self) {
-            var res = client_sockets[recived.c_id].scoket;
+            var res = client_sockets[recived.c_id].socket;
             try {
 
                 if (recived.err) {

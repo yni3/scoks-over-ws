@@ -76,7 +76,7 @@ TransBuffer.prototype.flash = function (self)
 };
 
 TransBuffer.prototype.emit = function (cmd, data) {
-    Logger.system.debug('[TransBuffer] queued %s command"', cmd);
+    //Logger.system.debug('[TransBuffer] queued %s command"', cmd);
     this.bufferd_queue.push([cmd, data]);
 };
 
